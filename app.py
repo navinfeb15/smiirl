@@ -8,7 +8,24 @@ data = {"followers": 0}
 
 def poll():
     with sync_playwright() as pw:
-        page = pw.chromium.launch(headless=True, args=["--no-sandbox"]).new_page()
+        browser = pw.chromium.launch(
+        headless=True,
+        args=["--no-sandbox","--disable-setuid-sandbox","--disable-blink-features=AutomationControlled"]
+    )
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)…",
+            viewport={"width":1280,"height":720},
+            locale="en-US"
+        )
+        context.add_init_script("""
+        () => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        window.navigator.chrome = { runtime: {} };
+        Object.defineProperty(navigator, 'languages', { get: () => ['en-US','en'] });
+        Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3] });
+        }
+        """)
+        page = context.new_page()
         page.goto("https://gamefound.com/en/projects/greymarsh-games-preben/sky-empire")
         page.wait_for_load_state()
         while True:
@@ -21,6 +38,3 @@ Thread(target=poll, daemon=True).start()
 @app.route("/followers")
 def followers():  # curl http://<ec2-ip>:5000/followers
     return jsonify(data)
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
