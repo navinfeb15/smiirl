@@ -38,3 +38,7 @@ Thread(target=poll, daemon=True).start()
 @app.route("/followers")
 def followers():  # curl http://<ec2-ip>:5000/followers
     return jsonify(data)
+
+@app.route("/")
+def home(): #Test
+    return "Code is running. Please navigate to /followers"
