@@ -56,4 +56,7 @@ while True:
         pw, browser, context, page = init_playwright()
     except Exception as e:
         logging.exception(f"Unexpected loop error: {e}")
+        browser.close()
+        pw.stop()
+        pw, browser, context, page = init_playwright()
     time.sleep(60)
