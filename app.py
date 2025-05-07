@@ -1,15 +1,18 @@
 import logging
+import time
+import requests
 from playwright.sync_api import sync_playwright
-import time, os, requests
+from playwright._impl._errors import TimeoutError
 
-# set up logging
+# logging setup
 logging.basicConfig(
     filename='script.log',
     level=logging.ERROR,
-    format='%(asctime)s %(levelname)s:%(message)s'
+    format='%(asctime)s %(levelname)s: %(message)s'
 )
 
-with sync_playwright() as pw:
+def init_playwright():
+    pw = sync_playwright().start()
     browser = pw.chromium.launch(
         headless=True,
         args=["--no-sandbox","--disable-setuid-sandbox","--disable-blink-features=AutomationControlled"]
@@ -28,18 +31,29 @@ with sync_playwright() as pw:
     }
     """)
     page = context.new_page()
+    return pw, browser, context, page
 
-    while True:
-        try:
-            page.goto("https://gamefound.com/en/projects/greymarsh-games-preben/sky-empire")
-            page.wait_for_load_state()
+# initialize
+pw, browser, context, page = init_playwright()
+count = "0"
+url = "https://gamefound.com/en/projects/greymarsh-games-preben/sky-empire"
+smiirl_base = "https://api.smiirl.com/e08e3c3b2963/set-number/639c0bebfbf909ae2d60293d494ce109"
+
+while True:
+    try:
+        response = page.goto(url, timeout=30000, wait_until="load")
+        if response and response.status == 200:
             loc = page.locator(".gfu-project-summary-box__actions div strong")
-            data = loc.text_content().strip() if loc.count() else '0'
-            smiirl_url = (
-                "https://api.smiirl.com/e08e3c3b2963/"
-                f"set-number/639c0bebfbf909ae2d60293d494ce109/{data}"
-            )
-            requests.get(smiirl_url)
-        except Exception as e:
-            logging.exception("Unexpected error in loop")
-        time.sleep(60)
+            data = loc.text_content().strip() if loc.count() else count
+            requests.get(f"{smiirl_base}/{data}")
+            count = data
+        else:
+            logging.error(f"Page load failed with status: {response.status if response else 'no response'}")
+    except TimeoutError:
+        logging.error("Page.goto timeout – restarting Playwright")
+        browser.close()
+        pw.stop()
+        pw, browser, context, page = init_playwright()
+    except Exception as e:
+        logging.exception(f"Unexpected loop error: {e}")
+    time.sleep(60)
