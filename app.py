@@ -50,7 +50,7 @@ while True:
         else:
             logging.error(f"Page load failed with status: {response.status if response else 'no response'}")
     except TimeoutError:
-        logging.error("Page.goto timeout – restarting Playwright")
+        #logging.error("Page.goto timeout – restarting Playwright")
         browser.close()
         pw.stop()
         pw, browser, context, page = init_playwright()
